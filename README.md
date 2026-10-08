@@ -92,6 +92,10 @@ python scripts/run_single_day.py   # today's dispatch, detailed plot
 python scripts/run_backtest.py     # a month of history, daily profit
 ```
 
+`run_backtest.py` on a month of September 2026 ENTSO-E prices:
+
+![Daily profit over a 30-day backtest](docs/backtest_profit.png)
+
 ## Tests
 
 ```bash
