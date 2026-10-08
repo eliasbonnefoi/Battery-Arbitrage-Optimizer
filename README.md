@@ -15,20 +15,39 @@ Given a day of prices, `optimize_day` solves a linear program (via
 - **State-of-charge constraint**: `soc[t] = soc[t-1] + period_hours * (charge[t] * charge_efficiency - discharge[t] / discharge_efficiency)`
 - **Bounds**: `0 <= charge[t], discharge[t] <= max_power_mw` and `0 <= soc[t] <= capacity_mwh`
 
-Market data comes from [RTE's Wholesale Market API](https://data.rte-france.com),
-which publishes EPEX day-ahead prices for France at 15-minute resolution.
+`run_backtest` chains `optimize_day` over consecutive days, carrying the
+battery's state of charge from the end of one day into the start of the next.
+
+### Data sources
+
+Two sources are used, for two different purposes:
+
+- **RTE's Wholesale Market API** (`fetch_rte_prices`) — gives EPEX day-ahead
+  prices for France at 15-minute resolution, but the endpoint takes no query
+  parameters: per RTE's own API guide it always returns only today's (or
+  tomorrow's, after ~13h French time) prices. It's used for the single-day
+  demo only — it cannot serve historical data.
+- **ENTSO-E Transparency Platform** (`fetch_entsoe_day_ahead_prices`) — the
+  source for historical day-ahead prices used by the backtest. Its XML
+  responses can contain duplicate or revised `<TimeSeries>` blocks for the
+  same day and some days have gaps (fewer points than a full day); the
+  fetch function deduplicates by period start and keeps each day's native
+  length and resolution rather than assuming a fixed one.
 
 ## Project layout
 
 ```
 src/battery_arbitrage/
     battery.py      # BatterySpec: physical battery parameters
-    optimizer.py     # optimize_day(): the LP optimizer
-    data.py          # RTE OAuth2 auth + day-ahead price fetching
+    optimizer.py     # optimize_day(): the LP optimizer, returns a DispatchResult
+    backtest.py      # run_backtest(): chains optimize_day over multiple days
+    data.py          # RTE (current day) + ENTSO-E (historical) price fetching
 scripts/
-    run_single_day.py  # end-to-end example: fetch prices, optimize, plot
+    run_single_day.py  # fetch today's RTE prices, optimize, plot the dispatch
+    run_backtest.py    # fetch a month of ENTSO-E prices, backtest, plot daily profit
 tests/
-    test_optimizer.py
+    test_optimizer.py  # LP correctness (analytic case, SOC bounds)
+    test_data.py        # ENTSO-E deduplication logic (mocked, no network)
 ```
 
 ## Setup
@@ -51,19 +70,26 @@ over PuLP's bundled binary when available.
 
 ### Credentials
 
-Get a free `client_id`/`client_secret` from
-[data.rte-france.com](https://data.rte-france.com) (subscribe to the
-"Wholesale Market" API), then create a `.env` file at the repo root:
+Both are free. Create a `.env` file at the repo root with:
 
 ```
 RTE_CLIENT_ID=...
 RTE_CLIENT_SECRET=...
+ENTSOE_API_KEY=...
 ```
+
+- **RTE**: subscribe to the "Wholesale Market" API at
+  [data.rte-france.com](https://data.rte-france.com) to get a
+  `client_id`/`client_secret` (instant approval).
+- **ENTSO-E**: generate a Web API token from "My Account Settings" →
+  "Web API Access" at
+  [transparency.entsoe.eu](https://transparency.entsoe.eu).
 
 ## Usage
 
 ```bash
-python scripts/run_single_day.py
+python scripts/run_single_day.py   # today's dispatch, detailed plot
+python scripts/run_backtest.py     # a month of history, daily profit
 ```
 
 ## Tests
