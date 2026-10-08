@@ -1,3 +1,5 @@
+"""Physical characteristics of a battery storage asset."""
+
 from dataclasses import dataclass
 
 
