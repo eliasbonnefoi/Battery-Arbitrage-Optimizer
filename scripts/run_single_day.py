@@ -18,15 +18,13 @@ from battery_arbitrage.battery import BatterySpec
 from battery_arbitrage.data import fetch_rte_prices, get_rte_token
 from battery_arbitrage.optimizer import optimize_day
 
-START_DATE = "2026-10-01T00:00:00+02:00"
-END_DATE = "2026-10-02T00:00:00+02:00"
 PERIOD_HOURS = 0.25  # RTE day-ahead prices are published at 15-minute resolution
 
 
 def main() -> None:
     load_dotenv()
     token = get_rte_token(os.environ["RTE_CLIENT_ID"], os.environ["RTE_CLIENT_SECRET"])
-    day_prices = fetch_rte_prices(token, START_DATE, END_DATE)
+    day_prices = fetch_rte_prices(token)  # RTE's endpoint always returns today's (or tomorrow's) prices
 
     battery = BatterySpec(
         capacity_mwh=8,
